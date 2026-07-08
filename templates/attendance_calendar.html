@@ -1,0 +1,885 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Attendance Calendar - {{ employee.user.get_full_name }}{% endblock %}
+
+{% block content %}
+
+<style>
+    :root {
+        --surface: #ffffff;
+        --surface-secondary: #f8f9fb;
+        --border: #e8ecf1;
+        --text-primary: #1a1d23;
+        --text-secondary: #6b7280;
+        --text-tertiary: #9ca3af;
+        --brand: #4f46e5;
+        --brand-light: #818cf8;
+        --success: #059669;
+        --success-bg: #ecfdf5;
+        --danger: #dc2626;
+        --danger-bg: #fef2f2;
+        --warning: #d97706;
+        --warning-bg: #fffbeb;
+        --info: #7c3aed;
+        --info-bg: #f5f3ff;
+        --radius-sm: 8px;
+        --radius: 12px;
+        --radius-lg: 16px;
+        --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+        --shadow-lg: 0 10px 15px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.04);
+        --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        background: #f5f6f8;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    .calendar-wrapper {
+        max-width: 1340px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem;
+    }
+
+    /* ========== HEADER PANEL ========== */
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 1.25rem;
+        overflow: hidden;
+    }
+
+    .panel-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-secondary);
+    }
+
+    .avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: var(--radius);
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.2rem;
+        letter-spacing: -0.02em;
+    }
+
+    .employee-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
+        line-height: 1.2;
+    }
+
+    .meta-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        padding: 0.35rem 0.85rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+    }
+
+    .meta-tag.night { background: #1e1b4b; color: #e0e7ff; border-color: #3730a3; }
+    .meta-tag.day { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
+    .meta-tag.evening { background: #eff6ff; color: #1e40af; border-color: #93c5fd; }
+
+    /* ========== NAVIGATION ========== */
+    .nav-bar {
+        padding: 1.25rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .nav-arrow {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+    }
+
+    .nav-arrow:hover {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+    }
+
+    .month-display {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        min-width: 200px;
+        text-align: center;
+    }
+
+    /* ========== STATS ROW ========== */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.25rem;
+        padding: 1.5rem 2rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        transition: var(--transition);
+    }
+
+    .stat-item:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+
+    .stat-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .stat-dot.present { background: var(--success); box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.12); }
+    .stat-dot.absent { background: var(--danger); box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12); }
+    .stat-dot.holiday { background: var(--warning); box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.12); }
+    .stat-dot.hours { background: var(--brand); box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12); }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+        letter-spacing: -0.02em;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-tertiary);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-sub {
+        font-size: 0.78rem;
+        color: var(--text-tertiary);
+    }
+
+    /* ========== CALENDAR GRID ========== */
+    .calendar-body-panel {
+        padding: 1.5rem 2rem;
+        background: var(--surface);
+    }
+
+    .weekday-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .weekday-label {
+        text-align: center;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-tertiary);
+        padding: 0.75rem 0;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.75rem;
+    }
+
+    .day-cell {
+        min-height: 130px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.75rem;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .day-cell:hover {
+        border-color: #c7d2fe;
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .day-cell.muted {
+        opacity: 0.35;
+        pointer-events: none;
+        background: #f9fafb;
+    }
+
+    .day-cell.future {
+        background: #fafbfc;
+        border-style: dashed;
+        cursor: default;
+        pointer-events: none;
+    }
+
+    .day-cell.future:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: var(--border);
+    }
+
+    .day-cell.today {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+    }
+
+    .day-cell.present {
+        background: var(--success-bg);
+        border-color: #a7f3d0;
+    }
+
+    .day-cell.absent {
+        background: var(--danger-bg);
+        border-color: #fecaca;
+    }
+
+    .day-cell.holiday {
+        background: var(--warning-bg);
+        border-color: #fde68a;
+    }
+
+    /* Day Number */
+    .day-num {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.01em;
+        line-height: 1;
+    }
+
+    .day-cell.today .day-num {
+        color: var(--brand);
+        font-weight: 800;
+        font-size: 1.05rem;
+    }
+
+    /* Time Entries (Check-In / Out Display Fix) */
+    .time-slot {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.2rem 0;
+        letter-spacing: 0.01em;
+    }
+
+    .time-slot.in { color: var(--success); }
+    .time-slot.out { color: var(--danger); }
+
+    .time-slot .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .time-slot.in .dot { background: var(--success); }
+    .time-slot.out .dot { background: var(--danger); }
+
+    .time-dash {
+        color: var(--text-tertiary);
+        font-size: 0.78rem;
+    }
+
+    /* Bottom strip */
+    .day-footer {
+        margin-top: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        align-items: center;
+        padding-top: 0.4rem;
+    }
+
+    .chip {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+
+    .chip-hours { background: #f1f5f9; color: #475569; }
+    .chip-ot { background: #ede9fe; color: #6d28d9; }
+    .chip-extra { background: #fce7f3; color: #be185d; }
+    .chip-shift-day { background: #fef3c7; color: #92400e; }
+    .chip-shift-night { background: #1e1b4b; color: #c7d2fe; }
+    .chip-shift-change { background: #fce7f3; color: #be185d; }
+
+    .status-tag {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.25rem 0.65rem;
+        border-radius: 4px;
+        letter-spacing: 0.02em;
+        margin-top: 0.4rem;
+        display: inline-block;
+        width: fit-content;
+    }
+
+    .status-tag.holiday-tag { background: #fef3c7; color: #92400e; }
+    .status-tag.absent-tag { background: #fee2e2; color: #991b1b; }
+
+    /* ========== MODALS ========== */
+    .modal-sheet .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
+    }
+
+    .modal-sheet .modal-header {
+        border-bottom: 1px solid var(--border);
+        padding: 1.25rem 1.5rem;
+        background: var(--surface-secondary);
+    }
+
+    .modal-sheet .modal-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .form-control-mod {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 0.6rem 0.85rem;
+        font-size: 0.88rem;
+        transition: var(--transition);
+        background: var(--surface);
+    }
+
+    .form-control-mod:focus {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+        outline: none;
+    }
+
+    .btn-primary-mod {
+        background: var(--brand);
+        color: #fff;
+        border: none;
+        padding: 0.6rem 1.25rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .btn-primary-mod:hover { background: #4338ca; }
+
+    .btn-secondary-mod {
+        background: var(--surface);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        padding: 0.6rem 1.25rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .btn-secondary-mod:hover { background: var(--surface-secondary); }
+
+    .btn-icon-sm {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: var(--transition);
+        color: var(--text-secondary);
+    }
+
+    .btn-icon-sm:hover { background: var(--surface-secondary); border-color: #c7d2fe; color: var(--brand); }
+    .btn-icon-sm.danger:hover { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
+
+    .summary-block {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding: 0.85rem;
+        background: var(--surface-secondary);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+    }
+
+    .summary-block-item {
+        text-align: center;
+    }
+
+    .summary-block-item .val {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .summary-block-item .lbl {
+        font-size: 0.68rem;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    /* ========== RESPONSIVE (IMPROVED TEXT & VIEWPORTS) ========== */
+    @media (max-width: 1200px) {
+        .calendar-grid { gap: 0.45rem; }
+        .day-cell { min-height: 115px; padding: 0.65rem 0.5rem; }
+        .time-slot { font-size: 0.75rem; }
+    }
+
+    @media (max-width: 992px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); }
+        .calendar-grid { gap: 0.4rem; }
+        .day-cell { min-height: 105px; padding: 0.55rem 0.45rem; border-radius: var(--radius-sm); }
+        .day-num { font-size: 0.85rem; }
+        .time-slot { font-size: 0.725rem; gap: 0.25rem; }
+        .chip { font-size: 0.65rem; padding: 0.15rem 0.45rem; }
+    }
+
+    @media (max-width: 768px) {
+        .calendar-wrapper { padding: 1.25rem 0.75rem; }
+        .panel-header { padding: 1.25rem; }
+        .nav-bar { padding: 1rem; }
+        .stats-row { padding: 1.25rem; gap: 0.5rem; }
+        .calendar-body-panel { padding: 1.25rem; }
+        .weekday-label { font-size: 0.725rem; letter-spacing: 0.04em; }
+        .day-cell { min-height: 92px; padding: 0.45rem 0.35rem; }
+        .day-num { font-size: 0.78rem; margin-bottom: 0.3rem; }
+        .time-slot { font-size: 0.68rem; gap: 0.2rem; }
+        .time-slot .dot { width: 5px; height: 5px; }
+        .month-display { font-size: 1rem; min-width: 160px; }
+        .chip { font-size: 0.625rem; }
+        .status-tag { font-size: 0.68rem; padding: 0.2rem 0.55rem; }
+    }
+
+    @media (max-width: 480px) {
+        .day-cell { min-height: 80px; padding: 0.35rem 0.25rem; border-radius: 6px; }
+        .day-num { font-size: 0.725rem; }
+        .time-slot { font-size: 0.625rem; }
+        .chip { font-size: 0.58rem; }
+        .calendar-grid { gap: 0.25rem; }
+        .weekday-header { gap: 0.25rem; }
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.35s ease-out; }
+</style>
+
+<div class="calendar-wrapper fade-in">
+
+    <!-- ==================== HEADER PANEL ==================== -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar">
+                        {{ employee.user.first_name|first|upper }}{{ employee.user.last_name|first|upper }}
+                    </div>
+                    <div>
+                        <div class="employee-name">{{ employee.user.get_full_name }}</div>
+                        {% if employee.work_rule %}
+                        <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                            <span class="meta-tag">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                {{ employee.work_rule.name }}
+                            </span>
+                            <span class="meta-tag {% if employee.work_rule.shift_type == 'Night' %}night{% elif employee.work_rule.shift_type == 'Day' %}day{% elif employee.work_rule.shift_type == 'Evening' %}evening{% endif %}">
+                                {% if employee.work_rule.shift_type == 'Night' %}🌙 Night
+                                {% elif employee.work_rule.shift_type == 'Day' %}☀ Day
+                                {% elif employee.work_rule.shift_type == 'Evening' %}🌆 Evening{% endif %}
+                            </span>
+                            <span class="meta-tag">{{ employee.work_rule.shift_start_time }} – {{ employee.work_rule.shift_end_time }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if user.is_superuser or user.employee.role in "Admin" %}
+                {% if can_edit_attendance %}
+                <div style="min-width: 240px;">
+                    <select id="employeeSelect" class="form-control-mod w-100">
+                        <option value="">Search Employee...</option>
+                        {% for emp in all_employees %}
+                            <option value="{{ emp.id }}" {% if emp.id == employee.id %}selected{% endif %}>
+                                {{ emp.user.get_full_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Month Navigation -->
+        <div class="nav-bar">
+            <a href="{% url 'attendance_calendar' employee.id previous_year previous_month %}" class="nav-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </a>
+            <span class="month-display">{{ month_name }} {{ year }}</span>
+            <a href="{% url 'attendance_calendar' employee.id next_year next_month %}" class="nav-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-item">
+                <span class="stat-dot present"></span>
+                <div>
+                    <div class="stat-label">Present</div>
+                    <div class="stat-value">{{ total_present }}</div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-dot absent"></span>
+                <div>
+                    <div class="stat-label">Absent</div>
+                    <div class="stat-value">{{ total_absent }}</div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-dot holiday"></span>
+                <div>
+                    <div class="stat-label">Holidays</div>
+                    <div class="stat-value">{{ total_holiday }}</div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-dot hours"></span>
+                <div>
+                    <div class="stat-label">Hours</div>
+                    <div class="stat-value">{{ total_working_hours }}h <span class="stat-sub">/ {{ total_expected_hours }}h</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== CALENDAR PANEL ==================== -->
+    <div class="panel">
+        <div class="calendar-body-panel">
+            <!-- Weekday Headers -->
+            <div class="weekday-header">
+                {% for day_name in day_names %}
+                    <div class="weekday-label">{{ day_name|slice:":3" }}</div>
+                {% endfor %}
+            </div>
+
+            <!-- Days Grid -->
+            <div class="calendar-grid">
+                {% for item in data %}
+                <div class="day-cell 
+                     {% if not item.is_current_month %} muted {% endif %}
+                     {% if item.is_today %} today {% endif %}
+                     {% if item.holiday %} holiday 
+                     {% elif item.present %} present 
+                     {% elif item.is_future %} future 
+                     {% else %} absent {% endif %}"
+                     data-date="{{ item.date_str }}"
+                     {% if item.is_future %} style="pointer-events: none;" {% endif %}>
+                    
+                    <div class="day-num">{{ item.day }}</div>
+
+                    {% if item.holiday %}
+                        <span class="status-tag holiday-tag">Holiday</span>
+
+                    {% elif item.present %}
+                        <!-- Fixed Key Display Issue (Using check_in and check_out keys) -->
+                        <div class="time-slot in">
+                            <span class="dot"></span>
+                            {% if item.check_in %}
+                                {{ item.check_in }}
+                            {% elif item.first_check_in %}
+                                {{ item.first_check_in }}
+                            {% else %}
+                                <span class="time-dash">--:--</span>
+                            {% endif %}
+                        </div>
+                        <div class="time-slot out">
+                            <span class="dot"></span>
+                            {% if item.check_out %}
+                                {{ item.check_out }}
+                            {% elif item.last_check_out %}
+                                {{ item.last_check_out }}
+                            {% else %}
+                                <span class="time-dash">--:--</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="day-footer">
+                            {% if item.daily_hours %}
+                            <span class="chip chip-hours">{{ item.daily_hours }}</span>
+                            {% endif %}
+                            {% if item.shift_type %}
+                            <span class="chip 
+                                {% if item.shift_type == 'Night' %}chip-shift-night
+                                {% elif item.shift_type == 'Day' %}chip-shift-day
+                                {% elif item.shift_type == 'Shift Change' %}chip-shift-change{% endif %}">
+                                {% if item.shift_type == 'Night' %}Night{% elif item.shift_type == 'Day' %}Day{% else %}Change{% endif %}
+                            </span>
+                            {% endif %}
+                            {% if item.overtime > 0 %}
+                            <span class="chip chip-ot">+{{ item.overtime }}h</span>
+                            {% endif %}
+                            {% if item.extra_shift > 0 %}
+                            <span class="chip chip-extra">Extra</span>
+                            {% endif %}
+                        </div>
+
+                    {% elif item.is_future %}
+                        <span class="time-dash" style="margin-top: 0.3rem;">—</span>
+                    {% else %}
+                        <span class="status-tag absent-tag">Absent</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+<div class="modal fade modal-sheet" id="attendanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Logs — <span id="modalDateTitle"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="attendanceDetailContent" class="text-center py-3">
+                    <div class="spinner-border text-secondary" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade modal-sheet" id="attendanceFormModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><span id="formModalTitle">Add Attendance</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="attendanceForm">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <input type="hidden" id="attendanceId">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.04em;">Type</label>
+                        <select id="attendanceType" class="form-control-mod w-100" required>
+                            <option value="check_in">Check In</option>
+                            <option value="check_out">Check Out</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.04em;">Date & Time</label>
+                        <input type="datetime-local" id="attendanceTime" class="form-control-mod w-100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.04em;">Location</label>
+                        <input type="text" id="attendanceLocation" class="form-control-mod w-100" placeholder="Office, Remote, Site...">
+                    </div>
+                </div>
+                <div class="modal-footer border-top" style="border-color: var(--border) !important;">
+                    <button type="button" class="btn-secondary-mod" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-primary-mod">Save Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== SCRIPTS ==================== -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<script>
+const CAN_EDIT_ATTENDANCE = {{ can_edit_attendance|yesno:"true,false" }};
+let empId = "{{ employee.id }}";
+
+document.addEventListener("DOMContentLoaded", function() {
+    const empSelect = document.getElementById("employeeSelect");
+    if (empSelect) {
+        new Choices(empSelect, { searchEnabled: true, itemSelectText: '', shouldSort: false });
+        empSelect.addEventListener('change', function() {
+            if (this.value) {
+                window.location.href = "{% url 'attendance_calendar' 999999 year month %}".replace('999999', this.value);
+            }
+        });
+    }
+
+    document.querySelectorAll(".day-cell[data-date]").forEach(cell => {
+        cell.addEventListener("click", function() {
+            if (this.classList.contains("future") || this.classList.contains("muted")) return;
+            let date = this.dataset.date;
+            let modal = new bootstrap.Modal(document.getElementById("attendanceModal"));
+            modal.show();
+            let body = document.getElementById("attendanceDetailContent");
+            body.innerHTML = `<div class="text-center py-3"><div class="spinner-border text-secondary" style="width:1.5rem;height:1.5rem;"></div></div>`;
+            fetch(`/attendance-day-detail/${empId}/${date}/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("modalDateTitle").innerText = data.date;
+                let html = `<div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-semibold text-secondary" style="font-size:0.82rem;">ATTENDANCE LOGS</div>`;
+                if(CAN_EDIT_ATTENDANCE) {
+                    html += `<button class="btn-primary-mod btn-sm" onclick="openAddModal('${date}')" style="padding:0.35rem 0.85rem;font-size:0.78rem;">+ Add</button>`;
+                }
+                html += `</div>
+                <div class="summary-block">
+                    <div class="summary-block-item"><div class="val">${data.total_hours || 0}h</div><div class="lbl">Hours</div></div>
+                    <div class="summary-block-item"><div class="val">${data.overtime || 0}h</div><div class="lbl">Overtime</div></div>
+                    <div class="summary-block-item"><div class="val">${data.extra || 0}h</div><div class="lbl">Extra Shift</div></div>
+                </div>
+                <table class="table table-borderless align-middle" style="font-size:0.85rem;">
+                    <thead style="background:#f8f9fb;"><tr><th class="text-secondary small text-uppercase">Type</th><th class="text-secondary small text-uppercase">Time</th><th class="text-secondary small text-uppercase">Location</th>${CAN_EDIT_ATTENDANCE ? '<th class="text-secondary small text-uppercase text-end">Actions</th>' : ''}</tr></thead><tbody>`;
+                if(data.logs.length) {
+                    data.logs.forEach(log => {
+                        let badgeStyle = log.type.toLowerCase().includes("in") ? 'background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;' : 'background:#fef2f2;color:#dc2626;border:1px solid #fecaca;';
+                        let loc = (log.location && log.location !== "—") ? log.location : "—";
+                        html += `<tr><td><span class="badge" style="${badgeStyle}font-weight:500;padding:0.3rem 0.6rem;">${log.type}</span></td><td><span class="fw-semibold">${log.timestamp}</span><br><small class="text-muted">${log.date}</small></td><td><small class="text-muted">${loc}</small></td>`;
+                        if(CAN_EDIT_ATTENDANCE){
+                            html += `<td class="text-end">
+                                <button class="btn-icon-sm edit-log-btn me-1" data-id="${log.id}" data-type="${log.type}" data-timestamp="${log.timestamp}" data-date="${log.date}" data-location="${loc.replace(/"/g,'&quot;')}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                                <button class="btn-icon-sm danger" onclick="deleteAttendance(${log.id})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>`;
+                        }
+                        html += `</tr>`;
+                    });
+                } else {
+                    html += `<tr><td colspan="${CAN_EDIT_ATTENDANCE ? 4 : 3}" class="text-center text-muted py-4">No records for this date.</td></tr>`;
+                }
+                html += `</tbody></table>`;
+                body.innerHTML = html;
+                document.querySelectorAll('.edit-log-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        openEditModal(this.dataset.id, this.dataset.type, this.dataset.timestamp, this.dataset.date, this.dataset.location);
+                    });
+                });
+            }).catch(() => { body.innerHTML = `<div class="alert alert-danger small">Failed to load.</div>`; });
+        });
+    });
+
+    function parseDT(dateStr, timeStr) {
+        try {
+            let [d, m, y] = dateStr.split('-');
+            let [t, mod] = timeStr.split(' ');
+            let [h, min] = t.split(':');
+            h = parseInt(h); if(mod.toUpperCase()==='PM'&&h<12)h+=12; if(mod.toUpperCase()==='AM'&&h===12)h=0;
+            return `${y}-${m}-${d}T${h.toString().padStart(2,'0')}:${min}`;
+        } catch(e) { return ""; }
+    }
+
+    window.openAddModal = function(date) {
+        if(!CAN_EDIT_ATTENDANCE) return;
+        document.getElementById("attendanceId").value = "";
+        document.getElementById("attendanceTime").value = date + "T09:00";
+        document.getElementById("attendanceLocation").value = "";
+        document.getElementById("attendanceType").value = "check_in";
+        document.getElementById("formModalTitle").innerText = "Add Attendance";
+        bootstrap.Modal.getInstance(document.getElementById("attendanceModal"))?.hide();
+        new bootstrap.Modal(document.getElementById("attendanceFormModal")).show();
+    }
+
+    window.openEditModal = function(id, typeDisplay, timeStr, dateStr, locationStr) {
+        if(!CAN_EDIT_ATTENDANCE) return;
+        document.getElementById("attendanceId").value = id;
+        document.getElementById("attendanceType").value = typeDisplay.toLowerCase().includes('in') ? 'check_in' : 'check_out';
+        document.getElementById("attendanceTime").value = parseDT(dateStr, timeStr);
+        document.getElementById("attendanceLocation").value = (locationStr && locationStr !== '—') ? locationStr : "";
+        document.getElementById("formModalTitle").innerText = "Update Attendance";
+        bootstrap.Modal.getInstance(document.getElementById("attendanceModal"))?.hide();
+        new bootstrap.Modal(document.getElementById("attendanceFormModal")).show();
+    }
+
+    document.getElementById("attendanceForm").addEventListener("submit", function(e) {
+        if(!CAN_EDIT_ATTENDANCE) return;
+        e.preventDefault();
+        let btn = this.querySelector('button[type="submit"]');
+        let og = btn.innerHTML;
+        btn.innerHTML = 'Saving...'; btn.disabled = true;
+        let id = document.getElementById("attendanceId").value;
+        let fd = new FormData();
+        fd.append("employee", empId);
+        fd.append("attendance_type", document.getElementById("attendanceType").value);
+        fd.append("timestamp", document.getElementById("attendanceTime").value.replace("T", " "));
+        fd.append("location", document.getElementById("attendanceLocation").value);
+        fetch(id ? `/attendance/update/${id}/` : `/attendance/create/`, {
+            method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" }, body: fd
+        }).then(r => r.json()).then(d => {
+            if(d.success || d.ok) location.reload();
+            else { alert(d.error || "Error"); btn.innerHTML = og; btn.disabled = false; }
+        }).catch(() => { alert("Network error"); btn.innerHTML = og; btn.disabled = false; });
+    });
+
+    window.deleteAttendance = function(id) {
+        if(!CAN_EDIT_ATTENDANCE) return;
+        if(!confirm("Permanently delete this attendance record?")) return;
+        fetch(`/attendance/delete/${id}/`, { method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" } })
+        .then(r => r.json()).then(d => { if(d.success || d.ok) location.reload(); else alert("Error"); });
+    }
+});
+</script>
+{% endblock %}
