@@ -24,7 +24,7 @@ Follow the steps below to set up the project on your local machine:
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/<your-username>/FRWO.git
+https://github.com/Avaneesh-Pathak/FRWO.git
 
 ```
 2️⃣ Navigate to the Project Directory
